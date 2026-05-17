@@ -120,6 +120,116 @@ app.post('/api/scores', async (req, res) => {
   }
 });
 
+// ---- API: ดึงรายงานละเอียด (pub_stu.php) ----
+app.post('/api/report', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: 'ไม่มีข้อมูล session' });
+  }
+
+  try {
+    // Login ใหม่เพื่อได้ Cookie
+    const formData = new URLSearchParams();
+    formData.append('user_stu', username);
+    formData.append('pass_stu', password);
+    formData.append('button2', 'เข้าสู่ระบบ');
+
+    const loginRes = await fetch(`${BASE_URL}/stu/index.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      body: formData.toString(),
+      redirect: 'manual',
+    });
+
+    const rawSetCookies = loginRes.headers.raw()['set-cookie'];
+    if (!rawSetCookies || rawSetCookies.length === 0) {
+      return res.status(401).json({ success: false, message: 'Session หมดอายุ กรุณา login ใหม่' });
+    }
+    const cookieHeader = rawSetCookies.map(c => c.split(';')[0]).join('; ');
+
+    // ดึงหน้า pub_stu.php
+    const reportRes = await fetch(`${BASE_URL}/stu/pub_stu.php`, {
+      headers: {
+        'Cookie': cookieHeader,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': `${BASE_URL}/stu/main-stu.php`,
+      },
+    });
+
+    const html = await reportRes.text();
+    const $ = cheerio.load(html);
+
+    // helper: แปลง table เป็น array of rows
+    function parseTable(tableEl) {
+      const rows = [];
+      $(tableEl).find('tr').each((i, tr) => {
+        const cells = [];
+        $(tr).find('td, th').each((j, td) => {
+          cells.push($(td).text().trim());
+        });
+        if (cells.length > 0) rows.push(cells);
+      });
+      return rows;
+    }
+
+    // ดึงชื่อนักเรียนจาก title
+    const pageTitle = $('title').text().trim() ||
+                      $('h4, h3, h2').first().text().trim() || '';
+
+    // หา header ที่มี "ความดี" และ "ประพฤติ"
+    let goodRows = [], badRows = [];
+    let goodTotal = '', badTotal = '';
+
+    // วิธีที่ 1: หาจาก td/th ที่มีข้อความ header
+    $('table').each((i, tbl) => {
+      const headerText = $(tbl).find('th, td').first().text();
+      const allText = $(tbl).text();
+
+      if (allText.includes('ความดี') && !allText.includes('ประพฤติ')) {
+        goodRows = parseTable(tbl);
+        // หา total จาก bold หรือ class พิเศษ
+        const totalCell = $(tbl).find('b, strong').first().text().trim();
+        if (totalCell) goodTotal = totalCell;
+      } else if (allText.includes('ประพฤติ') || allText.includes('พฤติกรรม')) {
+        badRows = parseTable(tbl);
+        const totalCell = $(tbl).find('b, strong').first().text().trim();
+        if (totalCell) badTotal = totalCell;
+      }
+    });
+
+    // วิธีที่ 2: fallback — ดึง 2 ตาราง data แรก (ข้ามตาราง layout)
+    if (goodRows.length === 0 && badRows.length === 0) {
+      const tables = $('table').toArray();
+      const dataTables = tables.filter(t => $(t).find('tr').length > 1);
+      if (dataTables[0]) goodRows = parseTable(dataTables[0]);
+      if (dataTables[1]) badRows  = parseTable(dataTables[1]);
+    }
+
+    // กรอง header row และ row ว่าง
+    const cleanRows = rows => rows.filter(r => r.some(c => c !== '') && !r.every(c => /^[ที่รายละเอียดคะแนนวันที่\s]*$/.test(c)));
+
+    return res.json({
+      success: true,
+      pageTitle,
+      good: {
+        rows: cleanRows(goodRows),
+        total: goodTotal
+      },
+      bad: {
+        rows: cleanRows(badRows),
+        total: badTotal
+      }
+    });
+
+  } catch (err) {
+    console.error('Report error:', err.message);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด: ' + err.message });
+  }
+});
+
 // Serve index.html for root
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
