@@ -160,6 +160,13 @@ app.post('/api/report', async (req, res) => {
     });
 
     const html = await reportRes.text();
+
+    // ── DEBUG: ดูว่า HTML ที่ได้กลับมาคืออะไร ──────────────────────
+    console.log('[report] HTTP status:', reportRes.status);
+    console.log('[report] HTML preview (first 600 chars):');
+    console.log(html.substring(0, 600).replace(/\s+/g, ' '));
+    // ─────────────────────────────────────────────────────────────────
+
     const $ = cheerio.load(html);
 
     // ── ดึง Total จาก <h4> ──────────────────────────────────────────
