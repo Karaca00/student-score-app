@@ -1,7 +1,7 @@
 const express = require('express');
-const fetch = require('node-fetch');
+const fetch   = require('node-fetch');
 const cheerio = require('cheerio');
-const path = require('path');
+const path    = require('path');
 
 const app = express();
 app.use(express.json());
@@ -9,229 +9,131 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const BASE_URL = 'http://www.kci.xn--12c1bpbba3dcfr1jra8c9bzgl.com';
+const UA       = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
-// ---- API: Login + ดึงคะแนน ----
-app.post('/api/scores', async (req, res) => {
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    return res.status(400).json({
-      success: false,
-      message: 'กรุณากรอก Username และ Password'
+// ── helper: parse table.three → array of data rows ──────────────────
+function parseThreeTable($, tblEl) {
+  const rows = [];
+  $(tblEl).find('tr').each((i, tr) => {
+    const firstCell = $(tr).find('td').first().text().trim();
+    if (firstCell === 'ที่') return; // ข้าม header row
+    const cells = [];
+    $(tr).find('td').each((_, td) => {
+      cells.push($(td).text().replace(/\s+/g, ' ').trim());
     });
+    if (cells.some(c => c !== '')) rows.push(cells);
+  });
+  return rows;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  POST /api/login
+//  1. Login → ได้ Cookie
+//  2. GET main-stu.php  → ได้คะแนนสรุป + ตั้ง Session ID ให้ PHP
+//  3. GET pub_stu.php   → ได้รายงานละเอียด (ต้องเข้า main ก่อน!)
+//  Return ทุกอย่างใน response เดียว
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: 'กรุณากรอก Username และ Password' });
   }
 
   try {
-    // Step 1: POST Login
+    // ── STEP 1: Login ────────────────────────────────────────────────
     const formData = new URLSearchParams();
     formData.append('user_stu', username);
     formData.append('pass_stu', password);
-    formData.append('button2', 'เข้าสู่ระบบ');
+    formData.append('button2',  'เข้าสู่ระบบ');
 
     const loginRes = await fetch(`${BASE_URL}/stu/index.php`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': `${BASE_URL}/stu/index.php`,
-      },
-      body: formData.toString(),
+      method:   'POST',
+      headers:  { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': UA },
+      body:     formData.toString(),
       redirect: 'manual',
     });
 
-    // ดึง Cookie จาก Response
-    const rawSetCookies = loginRes.headers.raw()['set-cookie'];
-    if (!rawSetCookies || rawSetCookies.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบ Username / Password'
-      });
+    const rawCookies = loginRes.headers.raw()['set-cookie'];
+    if (!rawCookies || rawCookies.length === 0) {
+      return res.status(401).json({ success: false, message: 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบ Username / Password' });
     }
+    const cookie = rawCookies.map(c => c.split(';')[0]).join('; ');
+    console.log('[login] cookie:', cookie);
 
-    const cookieHeader = rawSetCookies
-      .map(c => c.split(';')[0])
-      .join('; ');
-
-    // Step 2: เข้าหน้า main-stu.php พร้อม Session Cookie
-    const mainRes = await fetch(`${BASE_URL}/stu/main-stu.php`, {
-      method: 'GET',
-      headers: {
-        'Cookie': cookieHeader,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': `${BASE_URL}/stu/index.php`,
-      },
+    // ── STEP 2: GET main-stu.php (ดึงคะแนน + ตั้ง Session ให้ PHP) ──
+    const mainRes  = await fetch(`${BASE_URL}/stu/main-stu.php`, {
+      headers: { 'Cookie': cookie, 'User-Agent': UA, 'Referer': `${BASE_URL}/stu/index.php` },
     });
+    const mainHtml = await mainRes.text();
+    console.log('[main] status:', mainRes.status, '| length:', mainHtml.length);
 
-    if (!mainRes.ok) {
-      return res.status(500).json({
-        success: false,
-        message: `ไม่สามารถดึงข้อมูลได้ (HTTP ${mainRes.status})`
-      });
+    // ตรวจ login ไม่ผ่าน
+    if (mainHtml.includes('pass_stu') || mainHtml.includes('action="/stu/index.php"')) {
+      return res.status(401).json({ success: false, message: 'เข้าสู่ระบบไม่สำเร็จ' });
     }
 
-    const html = await mainRes.text();
+    // parse คะแนนสรุป
+    const $m         = cheerio.load(mainHtml);
+    const goodScore  = $m('span.text1').first().text().trim();
+    const badScore   = $m('.text2').first().text().trim();
+    const totalScore = $m('.text3').first().text().trim();
 
-    // ตรวจว่า redirect กลับไปหน้า login หรือเปล่า (Login ไม่สำเร็จ)
-    if (html.includes('action="/stu/index.php"') || html.includes('เข้าสู่ระบบ') && html.includes('pass_stu')) {
-      return res.status(401).json({
-        success: false,
-        message: 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบ Username / Password'
-      });
-    }
-
-    // Step 3: Parse HTML ด้วย Cheerio
-    const $ = cheerio.load(html);
-
-    const goodScore  = $('span.text1').first().text().trim();
-    const badScore   = $('td.text2').first().text().trim() ||
-                       $('.text2').first().text().trim();
-    const totalScore = $('td.text3').first().text().trim() ||
-                       $('.text3').first().text().trim();
-
-    // ดึงชื่อนักเรียน (ถ้ามี)
+    // parse ชื่อนักเรียน
     let studentName = '';
-    // หลายระบบเก็บไว้ใน <td> หรือ text node ก่อน menu
-    $('td').each((i, el) => {
-      const txt = $(el).text().trim();
-      if (txt.includes('นาย') || txt.includes('นางสาว') || txt.includes('เด็กชาย') || txt.includes('เด็กหญิง')) {
-        if (txt.length < 100) {
-          studentName = txt.replace(/\s+/g, ' ').trim();
-          return false; // break
-        }
+    $m('td, span').each((_, el) => {
+      const txt = $m(el).text().replace(/\s+/g, ' ').trim();
+      if ((txt.includes('นาย') || txt.includes('นางสาว') || txt.includes('เด็กชาย') || txt.includes('เด็กหญิง'))
+          && txt.length < 80) {
+        studentName = txt;
+        return false;
       }
     });
+
+    // ── STEP 3: GET pub_stu.php (ต้องเข้า main ก่อนเสมอ!) ──────────
+    const pubRes  = await fetch(`${BASE_URL}/stu/pub_stu.php`, {
+      headers: { 'Cookie': cookie, 'User-Agent': UA, 'Referer': `${BASE_URL}/stu/main-stu.php` },
+    });
+    const pubHtml = await pubRes.text();
+    console.log('[pub]  status:', pubRes.status, '| length:', pubHtml.length);
+    console.log('[pub]  preview:', pubHtml.substring(0, 300).replace(/\s+/g, ' '));
+
+    const $p = cheerio.load(pubHtml);
+
+    // ดึง total จาก <h4>
+    let goodTotal = '', badTotal = '';
+    $p('h4').each((_, el) => {
+      const txt = $p(el).text().replace(/\s+/g, ' ').trim();
+      const m   = txt.match(/([+\-]?\d+)/);
+      if (!m) return;
+      if      (txt.includes('ความดี'))                          goodTotal = (m[1].startsWith('+') ? '' : '+') + m[1];
+      else if (txt.includes('ตัดคะแนน') || txt.includes('พฤติกรรม')) badTotal = m[1];
+    });
+
+    // ดึงรายงานจาก table.three
+    const tables  = $p('table.three');
+    const goodRows = parseThreeTable($p, tables.eq(0));
+    const badRows  = parseThreeTable($p, tables.eq(1));
+    console.log('[pub]  tables.three:', tables.length, '| goodRows:', goodRows.length, '| badRows:', badRows.length);
 
     return res.json({
       success: true,
       student: studentName || null,
-      scores: {
-        good:  goodScore  || '+0',
-        bad:   badScore   || '0',
-        total: totalScore || '0',
-      }
-    });
-
-  } catch (err) {
-    console.error('Error:', err.message);
-    return res.status(500).json({
-      success: false,
-      message: 'เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message
-    });
-  }
-});
-
-// ---- API: ดึงรายงานละเอียด (pub_stu.php) ----
-app.post('/api/report', async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ success: false, message: 'ไม่มีข้อมูล session' });
-  }
-
-  try {
-    // Login ใหม่เพื่อได้ Cookie
-    const formData = new URLSearchParams();
-    formData.append('user_stu', username);
-    formData.append('pass_stu', password);
-    formData.append('button2', 'เข้าสู่ระบบ');
-
-    const loginRes = await fetch(`${BASE_URL}/stu/index.php`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-      body: formData.toString(),
-      redirect: 'manual',
-    });
-
-    const rawSetCookies = loginRes.headers.raw()['set-cookie'];
-    if (!rawSetCookies || rawSetCookies.length === 0) {
-      return res.status(401).json({ success: false, message: 'Session หมดอายุ กรุณา login ใหม่' });
-    }
-    const cookieHeader = rawSetCookies.map(c => c.split(';')[0]).join('; ');
-
-    // ดึงหน้า pub_stu.php
-    const reportRes = await fetch(`${BASE_URL}/stu/pub_stu.php`, {
-      headers: {
-        'Cookie': cookieHeader,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': `${BASE_URL}/stu/main-stu.php`,
+      scores:  { good: goodScore || '0', bad: badScore || '0', total: totalScore || '0' },
+      report:  {
+        good: { rows: goodRows, total: goodTotal },
+        bad:  { rows: badRows,  total: badTotal  },
       },
     });
 
-    const html = await reportRes.text();
-
-    // ── DEBUG: ดูว่า HTML ที่ได้กลับมาคืออะไร ──────────────────────
-    console.log('[report] HTTP status:', reportRes.status);
-    console.log('[report] HTML preview (first 600 chars):');
-    console.log(html.substring(0, 600).replace(/\s+/g, ' '));
-    // ─────────────────────────────────────────────────────────────────
-
-    const $ = cheerio.load(html);
-
-    // ── ดึง Total จาก <h4> ──────────────────────────────────────────
-    // HTML จริง: <h4><span class="text1">คะแนนความดี +12 คะแนน</span></h4>
-    //           <h4><span class="text1">ตัดคะแนนพฤติกรรม -5 คะแนน</span></h4>
-    let goodTotal = '', badTotal = '';
-    $('h4').each((i, el) => {
-      const txt = $(el).text().replace(/\s+/g, ' ').trim();
-      const numMatch = txt.match(/([+\-]?\d+)/);
-      if (!numMatch) return;
-      if (txt.includes('ความดี')) {
-        goodTotal = numMatch[1].startsWith('+') ? numMatch[1] : '+' + numMatch[1];
-      } else if (txt.includes('ตัดคะแนน') || txt.includes('พฤติกรรม')) {
-        badTotal = numMatch[1];
-      }
-    });
-
-    // ── ดึงข้อมูลจาก table.three (มี 2 ตาราง: ความดี + ประพฤติ) ──
-    // HTML จริงใช้ class="three" สำหรับตาราง data ทั้งสอง
-    const threeTables = $('table.three');
-
-    function parseThreeTable(tblEl) {
-      const rows = [];
-      $(tblEl).find('tr').each((i, tr) => {
-        // ข้ามแถว header (แถวแรก) ที่มีข้อความ "ที่ รายละเอียด คะแนน วันที่"
-        const firstCell = $(tr).find('td').first().text().trim();
-        if (firstCell === 'ที่') return;
-
-        const cells = [];
-        $(tr).find('td').each((j, td) => {
-          // ดึง text และกำจัด whitespace ซ้ำ
-          cells.push($(td).text().replace(/\s+/g, ' ').trim());
-        });
-        // เอาเฉพาะแถวที่มีข้อมูล (ไม่ว่างทั้งแถว)
-        if (cells.some(c => c !== '')) rows.push(cells);
-      });
-      return rows;
-    }
-
-    const goodRows = parseThreeTable(threeTables.eq(0));
-    const badRows  = parseThreeTable(threeTables.eq(1));
-
-    // ── Debug log (ดูใน Render logs ได้) ──────────────────────────
-    console.log(`[report] threeTables found: ${threeTables.length}`);
-    console.log(`[report] goodRows: ${goodRows.length}, badRows: ${badRows.length}`);
-    console.log(`[report] goodTotal: ${goodTotal}, badTotal: ${badTotal}`);
-
-    return res.json({
-      success: true,
-      good: { rows: goodRows, total: goodTotal },
-      bad:  { rows: badRows,  total: badTotal  },
-    });
-
   } catch (err) {
-    console.error('Report error:', err.message);
+    console.error('[error]', err.message);
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด: ' + err.message });
   }
 });
 
-// Serve index.html for root
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅  Server running → http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`✅  Server running → http://localhost:${PORT}`));
