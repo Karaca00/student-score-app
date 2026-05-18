@@ -428,20 +428,12 @@
       const color   = isGood ? 'green-bg' : 'red-bg';
       const icon    = isGood ? '😇' : '😔';
       const title   = isGood ? 'รายงานความดี' : 'รายงานความประพฤติ';
+      const total   = data.total || '';
 
-      const rows    = (data.rows || []).filter(r => r.length >= 2);
+      // server แยก header row ออกแล้ว — rows ที่ได้คือ data จริงทั้งหมด
+      // format: [ที่, รายละเอียด, คะแนน, วันที่]
+      const rows = (data.rows || []);
       if (!rows.length) return `<div class="empty-state">ไม่มีรายการ${title}</div>`;
-
-      // ตรวจ header row
-      const isHeader = rows[0].some(c => /ที่|รายละเอียด|คะแนน|วันที่/i.test(c));
-      const dataRows = isHeader ? rows.slice(1) : rows;
-
-      // หา total จาก cell ที่มี [+/-]digits ใน header row หรือ data.total
-      let total = data.total || '';
-      if (!total && isHeader) {
-        const hRow = rows[0].find(c => /[+\-]\d+/.test(c));
-        if (hRow) total = hRow;
-      }
 
       let tbl = `
         <div class="report-section">
@@ -454,31 +446,28 @@
             <thead><tr>
               <th style="width:36px">ที่</th>
               <th>รายละเอียด</th>
-              <th style="width:70px;text-align:center">คะแนน</th>
-              <th style="width:100px">วันที่</th>
+              <th style="width:72px;text-align:center">คะแนน</th>
+              <th style="width:110px">วันที่</th>
             </tr></thead><tbody>`;
 
-      if (!dataRows.length) {
-        tbl += `<tr><td colspan="4" class="empty-state">ไม่มีรายการ</td></tr>`;
-      } else {
-        dataRows.forEach((row, i) => {
-          let num, detail, score, date;
-          if (row.length >= 4)      { [num, detail, score, date] = row; }
-          else if (row.length === 3){ num = i+1; [detail, score, date] = row; }
-          else                      { num = i+1; detail = row[0]; score = row[1]||''; date=''; }
+      rows.forEach((row, i) => {
+        // รับ [ที่, รายละเอียด, คะแนน, วันที่] หรือ [รายละเอียด, คะแนน, วันที่]
+        let num, detail, score, date;
+        if (row.length >= 4)       { [num, detail, score, date] = row; }
+        else if (row.length === 3) { num = i + 1; [detail, score, date] = row; }
+        else                       { num = i + 1; detail = row[0]; score = row[1] || ''; date = ''; }
 
-          const val   = String(score).trim();
-          const isPos = val.startsWith('+') || (!val.startsWith('-') && Number(val) > 0);
-          const chip  = `<span class="score-chip ${isPos?'pos':'neg'}">${val}</span>`;
+        const val   = String(score).trim();
+        const isPos = val.startsWith('+') || (!val.startsWith('-') && parseFloat(val) > 0);
+        const chip  = val ? `<span class="score-chip ${isPos ? 'pos' : 'neg'}">${val}</span>` : '';
 
-          tbl += `<tr>
-            <td class="no-num">${num}</td>
-            <td>${detail||''}</td>
-            <td style="text-align:center">${chip}</td>
-            <td class="date-cell">${date||''}</td>
-          </tr>`;
-        });
-      }
+        tbl += `<tr>
+          <td class="no-num">${num || i + 1}</td>
+          <td>${detail || ''}</td>
+          <td style="text-align:center">${chip}</td>
+          <td class="date-cell">${date || ''}</td>
+        </tr>`;
+      });
       tbl += `</tbody></table></div>`;
       return tbl;
     }
