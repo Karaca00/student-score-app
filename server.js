@@ -162,66 +162,55 @@ app.post('/api/report', async (req, res) => {
     const html = await reportRes.text();
     const $ = cheerio.load(html);
 
-    // helper: แปลง table เป็น array of rows
-    function parseTable(tableEl) {
+    // ── ดึง Total จาก <h4> ──────────────────────────────────────────
+    // HTML จริง: <h4><span class="text1">คะแนนความดี +12 คะแนน</span></h4>
+    //           <h4><span class="text1">ตัดคะแนนพฤติกรรม -5 คะแนน</span></h4>
+    let goodTotal = '', badTotal = '';
+    $('h4').each((i, el) => {
+      const txt = $(el).text().replace(/\s+/g, ' ').trim();
+      const numMatch = txt.match(/([+\-]?\d+)/);
+      if (!numMatch) return;
+      if (txt.includes('ความดี')) {
+        goodTotal = numMatch[1].startsWith('+') ? numMatch[1] : '+' + numMatch[1];
+      } else if (txt.includes('ตัดคะแนน') || txt.includes('พฤติกรรม')) {
+        badTotal = numMatch[1];
+      }
+    });
+
+    // ── ดึงข้อมูลจาก table.three (มี 2 ตาราง: ความดี + ประพฤติ) ──
+    // HTML จริงใช้ class="three" สำหรับตาราง data ทั้งสอง
+    const threeTables = $('table.three');
+
+    function parseThreeTable(tblEl) {
       const rows = [];
-      $(tableEl).find('tr').each((i, tr) => {
+      $(tblEl).find('tr').each((i, tr) => {
+        // ข้ามแถว header (แถวแรก) ที่มีข้อความ "ที่ รายละเอียด คะแนน วันที่"
+        const firstCell = $(tr).find('td').first().text().trim();
+        if (firstCell === 'ที่') return;
+
         const cells = [];
-        $(tr).find('td, th').each((j, td) => {
-          cells.push($(td).text().trim());
+        $(tr).find('td').each((j, td) => {
+          // ดึง text และกำจัด whitespace ซ้ำ
+          cells.push($(td).text().replace(/\s+/g, ' ').trim());
         });
-        if (cells.length > 0) rows.push(cells);
+        // เอาเฉพาะแถวที่มีข้อมูล (ไม่ว่างทั้งแถว)
+        if (cells.some(c => c !== '')) rows.push(cells);
       });
       return rows;
     }
 
-    // ดึงชื่อนักเรียนจาก title
-    const pageTitle = $('title').text().trim() ||
-                      $('h4, h3, h2').first().text().trim() || '';
+    const goodRows = parseThreeTable(threeTables.eq(0));
+    const badRows  = parseThreeTable(threeTables.eq(1));
 
-    // หา header ที่มี "ความดี" และ "ประพฤติ"
-    let goodRows = [], badRows = [];
-    let goodTotal = '', badTotal = '';
-
-    // วิธีที่ 1: หาจาก td/th ที่มีข้อความ header
-    $('table').each((i, tbl) => {
-      const headerText = $(tbl).find('th, td').first().text();
-      const allText = $(tbl).text();
-
-      if (allText.includes('ความดี') && !allText.includes('ประพฤติ')) {
-        goodRows = parseTable(tbl);
-        // หา total จาก bold หรือ class พิเศษ
-        const totalCell = $(tbl).find('b, strong').first().text().trim();
-        if (totalCell) goodTotal = totalCell;
-      } else if (allText.includes('ประพฤติ') || allText.includes('พฤติกรรม')) {
-        badRows = parseTable(tbl);
-        const totalCell = $(tbl).find('b, strong').first().text().trim();
-        if (totalCell) badTotal = totalCell;
-      }
-    });
-
-    // วิธีที่ 2: fallback — ดึง 2 ตาราง data แรก (ข้ามตาราง layout)
-    if (goodRows.length === 0 && badRows.length === 0) {
-      const tables = $('table').toArray();
-      const dataTables = tables.filter(t => $(t).find('tr').length > 1);
-      if (dataTables[0]) goodRows = parseTable(dataTables[0]);
-      if (dataTables[1]) badRows  = parseTable(dataTables[1]);
-    }
-
-    // กรอง header row และ row ว่าง
-    const cleanRows = rows => rows.filter(r => r.some(c => c !== '') && !r.every(c => /^[ที่รายละเอียดคะแนนวันที่\s]*$/.test(c)));
+    // ── Debug log (ดูใน Render logs ได้) ──────────────────────────
+    console.log(`[report] threeTables found: ${threeTables.length}`);
+    console.log(`[report] goodRows: ${goodRows.length}, badRows: ${badRows.length}`);
+    console.log(`[report] goodTotal: ${goodTotal}, badTotal: ${badTotal}`);
 
     return res.json({
       success: true,
-      pageTitle,
-      good: {
-        rows: cleanRows(goodRows),
-        total: goodTotal
-      },
-      bad: {
-        rows: cleanRows(badRows),
-        total: badTotal
-      }
+      good: { rows: goodRows, total: goodTotal },
+      bad:  { rows: badRows,  total: badTotal  },
     });
 
   } catch (err) {
