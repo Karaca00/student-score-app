@@ -1,490 +1,407 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ระบบดูคะแนนนักเรียน | คำชะอีวิทยาคาร</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&family=Noto+Sans+Thai:wght@300;400;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:       #0b0f1a;
-      --surface:  #131929;
-      --card:     #1a2235;
-      --border:   rgba(255,255,255,0.07);
-      --accent:   #38bdf8;
-      --gold:     #f9c846;
-      --green:    #4ade80;
-      --red:      #f87171;
-      --purple:   #a78bfa;
-      --text:     #e2e8f0;
-      --muted:    #64748b;
-      --radius:   16px;
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0b0f1a;--surface:#131929;--card:#1a2235;--border:rgba(255,255,255,.07);
+      --accent:#38bdf8;--gold:#f9c846;--green:#4ade80;--red:#f87171;--purple:#a78bfa;
+      --text:#e2e8f0;--muted:#64748b;--r:16px;
     }
+    body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);
+      min-height:100vh;display:flex;flex-direction:column;align-items:center;
+      justify-content:center;padding:24px 16px;overflow-x:hidden;}
+    body::before,body::after{content:'';position:fixed;border-radius:50%;
+      filter:blur(80px);opacity:.15;pointer-events:none;animation:drift 12s ease-in-out infinite alternate;}
+    body::before{width:500px;height:500px;background:radial-gradient(circle,#38bdf8,transparent);top:-100px;left:-100px;}
+    body::after{width:400px;height:400px;background:radial-gradient(circle,#a78bfa,transparent);bottom:-80px;right:-80px;animation-direction:alternate-reverse;}
+    @keyframes drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(40px,30px) scale(1.1)}}
 
-    html { scroll-behavior: smooth; }
-    body {
-      font-family: 'Sarabun', 'Noto Sans Thai', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
-      position: relative;
-      overflow-x: hidden;
-    }
+    .wrapper{width:100%;max-width:440px;z-index:1;}
 
-    body::before, body::after {
-      content: '';
-      position: fixed;
-      border-radius: 50%;
-      filter: blur(80px);
-      opacity: 0.15;
-      pointer-events: none;
-      animation: drift 12s ease-in-out infinite alternate;
-    }
-    body::before { width:500px;height:500px;background:radial-gradient(circle,#38bdf8,transparent);top:-100px;left:-100px; }
-    body::after  { width:400px;height:400px;background:radial-gradient(circle,#a78bfa,transparent);bottom:-80px;right:-80px;animation-direction:alternate-reverse; }
-    @keyframes drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,30px) scale(1.1)} }
+    /* Header */
+    .header{text-align:center;margin-bottom:32px;}
+    .header .icon{font-size:42px;display:block;animation:float 3s ease-in-out infinite;margin-bottom:8px;}
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+    .header h1{font-size:22px;font-weight:800;color:var(--gold);text-shadow:0 0 20px rgba(249,200,70,.4);}
+    .header p{font-size:13px;color:var(--muted);margin-top:4px;}
 
-    .wrapper { width:100%;max-width:440px;position:relative;z-index:1; }
+    /* Card */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+      padding:32px 28px;box-shadow:0 20px 60px rgba(0,0,0,.4);}
 
-    .header { text-align:center;margin-bottom:32px; }
-    .header .school-icon { font-size:42px;margin-bottom:8px;display:block;animation:float 3s ease-in-out infinite; }
-    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-    .header h1 { font-size:22px;font-weight:800;color:var(--gold);letter-spacing:.5px;text-shadow:0 0 20px rgba(249,200,70,.4); }
-    .header p { font-size:13px;color:var(--muted);margin-top:4px; }
+    /* Form */
+    .field{margin-bottom:18px;}
+    .field label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;
+      letter-spacing:1px;color:var(--muted);margin-bottom:8px;}
+    .field input{width:100%;background:var(--surface);border:1px solid var(--border);
+      border-radius:10px;padding:12px 16px;font-family:inherit;font-size:15px;
+      color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;}
+    .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.15);}
+    .field input::placeholder{color:var(--muted);}
 
-    .card { background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:32px 28px;box-shadow:0 20px 60px rgba(0,0,0,.4); }
+    .btn{width:100%;padding:14px;border:none;border-radius:10px;font-family:inherit;
+      font-size:16px;font-weight:700;cursor:pointer;transition:all .25s;}
+    .btn-primary{background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;
+      box-shadow:0 4px 20px rgba(14,165,233,.35);}
+    .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 28px rgba(14,165,233,.5);}
+    .btn-primary:disabled{opacity:.55;cursor:not-allowed;}
 
-    .field-group { margin-bottom:18px; }
-    .field-group label { display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px; }
-    .field-group input { width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-family:inherit;font-size:15px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s; }
-    .field-group input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.15); }
-    .field-group input::placeholder { color:var(--muted); }
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
+      border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
+      vertical-align:middle;margin-right:8px;}
+    @keyframes spin{to{transform:rotate(360deg)}}
 
-    .btn { width:100%;padding:14px;border:none;border-radius:10px;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;transition:all .25s; }
-    .btn-primary { background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;box-shadow:0 4px 20px rgba(14,165,233,.35); }
-    .btn-primary:hover:not(:disabled) { transform:translateY(-2px);box-shadow:0 8px 28px rgba(14,165,233,.5); }
-    .btn-primary:disabled { opacity:.55;cursor:not-allowed; }
+    .alert{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35);
+      border-radius:10px;padding:12px 16px;font-size:14px;color:var(--red);
+      margin-bottom:16px;display:none;}
+    .alert.show{display:block;}
 
-    .spinner { display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px; }
-    @keyframes spin { to{transform:rotate(360deg)} }
-
-    .alert { background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--red);margin-bottom:16px;display:none; }
-    .alert.show { display:block; }
+    /* Loading overlay */
+    #loadingOverlay{display:none;position:fixed;inset:0;background:rgba(11,15,26,.85);
+      backdrop-filter:blur(6px);z-index:200;align-items:center;justify-content:center;
+      flex-direction:column;gap:16px;}
+    #loadingOverlay.show{display:flex;}
+    .big-spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,.1);
+      border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+    #loadingOverlay p{color:var(--muted);font-size:14px;}
 
     /* Results */
-    #results { display:none; }
-    #results.show { display:block;animation:fadeUp .5s ease both; }
-    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    #results{display:none;}
+    #results.show{display:block;animation:fadeUp .5s ease both;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 
-    .student-badge { background:linear-gradient(135deg,var(--surface),#1e2d45);border:1px solid rgba(56,189,248,.2);border-radius:12px;padding:14px 18px;margin-bottom:24px;display:flex;align-items:center;gap:12px; }
-    .student-badge .avatar { width:42px;height:42px;background:linear-gradient(135deg,#0ea5e9,#6366f1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0; }
-    .student-badge .name { font-size:14px;font-weight:600; }
-    .student-badge .sub  { font-size:12px;color:var(--muted);margin-top:2px; }
+    .badge{background:linear-gradient(135deg,var(--surface),#1e2d45);
+      border:1px solid rgba(56,189,248,.2);border-radius:12px;padding:14px 18px;
+      margin-bottom:24px;display:flex;align-items:center;gap:12px;}
+    .badge .av{width:42px;height:42px;background:linear-gradient(135deg,#0ea5e9,#6366f1);
+      border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+    .badge .name{font-size:14px;font-weight:600;}
+    .badge .sub{font-size:12px;color:var(--muted);margin-top:2px;}
 
-    /* Score cards */
-    .score-grid { display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px; }
-    @media (max-width:380px) { .score-grid { grid-template-columns:1fr; } }
+    /* Score grid */
+    .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px;}
+    @media(max-width:380px){.grid{grid-template-columns:1fr}}
+    .sc{border-radius:14px;padding:20px 14px;text-align:center;border:1px solid transparent;
+      cursor:pointer;transition:transform .25s,box-shadow .3s;user-select:none;position:relative;}
+    .sc:hover{transform:translateY(-6px);}
+    .sc:active{transform:scale(.96);}
+    .sc::after{content:'🔍';font-size:10px;position:absolute;bottom:5px;right:7px;opacity:.3;transition:opacity .2s;}
+    .sc:hover::after{opacity:.8;}
+    .sc.good{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.25);box-shadow:0 0 30px rgba(74,222,128,.2);}
+    .sc.good .val{color:var(--green);text-shadow:0 0 20px rgba(74,222,128,.5);}
+    .sc.bad{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.25);box-shadow:0 0 30px rgba(248,113,113,.2);}
+    .sc.bad .val{color:var(--red);text-shadow:0 0 20px rgba(248,113,113,.5);}
+    .sc.total{background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.25);box-shadow:0 0 30px rgba(167,139,250,.2);}
+    .sc.total .val{color:var(--purple);text-shadow:0 0 20px rgba(167,139,250,.5);}
+    .sc-icon{font-size:24px;margin-bottom:8px;}
+    .val{font-size:30px;font-weight:900;letter-spacing:-1px;line-height:1;}
+    .lbl{font-size:11px;color:var(--muted);margin-top:6px;font-weight:600;}
 
-    .score-card {
-      border-radius:14px;padding:20px 14px;text-align:center;border:1px solid transparent;
-      cursor:pointer;transition:transform .25s,box-shadow .3s;user-select:none;position:relative;
-    }
-    .score-card:hover  { transform:translateY(-6px); }
-    .score-card:active { transform:scale(.96); }
+    /* Actions */
+    .actions{display:flex;gap:10px;}
+    .btn-outline{flex:1;background:transparent;border:1px solid var(--border);color:var(--muted);
+      font-size:13px;padding:10px;}
+    .btn-outline:hover{border-color:var(--accent);color:var(--accent);}
 
-    .score-card::after {
-      content:'🔍';font-size:10px;position:absolute;bottom:5px;right:7px;
-      opacity:.3;transition:opacity .2s;
-    }
-    .score-card:hover::after { opacity:.8; }
-
-    .score-card.good  { background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.25);box-shadow:0 0 30px rgba(74,222,128,.2); }
-    .score-card.good .score-value  { color:var(--green);text-shadow:0 0 20px rgba(74,222,128,.5); }
-    .score-card.bad   { background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.25);box-shadow:0 0 30px rgba(248,113,113,.2); }
-    .score-card.bad  .score-value  { color:var(--red);text-shadow:0 0 20px rgba(248,113,113,.5); }
-    .score-card.total { background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.25);box-shadow:0 0 30px rgba(167,139,250,.2); }
-    .score-card.total .score-value { color:var(--purple);text-shadow:0 0 20px rgba(167,139,250,.5); }
-
-    .score-icon  { font-size:24px;margin-bottom:8px; }
-    .score-value { font-size:30px;font-weight:900;letter-spacing:-1px;line-height:1; }
-    .score-label { font-size:11px;color:var(--muted);margin-top:6px;font-weight:600;letter-spacing:.3px; }
-
-    .actions { display:flex;gap:10px; }
-    .btn-outline { flex:1;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:13px;padding:10px; }
-    .btn-outline:hover { border-color:var(--accent);color:var(--accent); }
-
-    /* ─── MODAL ─── */
-    .modal-overlay {
-      position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);
+    /* Modal */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);
       z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;
-      opacity:0;pointer-events:none;transition:opacity .25s;
-    }
-    .modal-overlay.open { opacity:1;pointer-events:all; }
-
-    .modal {
-      background:var(--card);border:1px solid var(--border);border-radius:20px;
+      opacity:0;pointer-events:none;transition:opacity .25s;}
+    .overlay.open{opacity:1;pointer-events:all;}
+    .modal{background:var(--card);border:1px solid var(--border);border-radius:20px;
       width:100%;max-width:660px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;
-      transform:translateY(30px) scale(.97);transition:transform .3s;
-      box-shadow:0 30px 80px rgba(0,0,0,.6);
-    }
-    .modal-overlay.open .modal { transform:translateY(0) scale(1); }
-
-    .modal-header {
-      padding:18px 24px;display:flex;align-items:center;justify-content:space-between;
-      border-bottom:1px solid var(--border);flex-shrink:0;
-    }
-    .modal-title { font-size:16px;font-weight:700; }
-    .modal-close {
-      width:32px;height:32px;border-radius:50%;background:var(--surface);
-      border:none;color:var(--muted);cursor:pointer;font-size:18px;
-      display:flex;align-items:center;justify-content:center;transition:background .2s,color .2s;
-    }
-    .modal-close:hover { background:rgba(248,113,113,.2);color:var(--red); }
-
-    .modal-tabs { display:flex;border-bottom:1px solid var(--border);flex-shrink:0; }
-    .tab-btn {
-      flex:1;padding:12px;background:transparent;border:none;font-family:inherit;
+      transform:translateY(30px) scale(.97);transition:transform .3s;box-shadow:0 30px 80px rgba(0,0,0,.6);}
+    .overlay.open .modal{transform:translateY(0) scale(1);}
+    .mhead{padding:18px 24px;display:flex;align-items:center;justify-content:space-between;
+      border-bottom:1px solid var(--border);flex-shrink:0;}
+    .mtitle{font-size:16px;font-weight:700;}
+    .mclose{width:32px;height:32px;border-radius:50%;background:var(--surface);border:none;
+      color:var(--muted);cursor:pointer;font-size:18px;display:flex;align-items:center;
+      justify-content:center;transition:background .2s,color .2s;}
+    .mclose:hover{background:rgba(248,113,113,.2);color:var(--red);}
+    .tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+    .tab{flex:1;padding:12px;background:transparent;border:none;font-family:inherit;
       font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
-      border-bottom:2px solid transparent;transition:all .2s;
-    }
-    .tab-btn.active.good-tab { color:var(--green);border-bottom-color:var(--green); }
-    .tab-btn.active.bad-tab  { color:var(--red);border-bottom-color:var(--red); }
+      border-bottom:2px solid transparent;transition:all .2s;}
+    .tab.active.gt{color:var(--green);border-bottom-color:var(--green);}
+    .tab.active.bt{color:var(--red);border-bottom-color:var(--red);}
+    .mbody{overflow-y:auto;padding:20px 24px;flex:1;}
 
-    .modal-body { overflow-y:auto;padding:20px 24px;flex:1; }
-
-    .modal-loading { text-align:center;padding:48px;color:var(--muted); }
-    .modal-loading .big-spinner {
-      display:block;width:32px;height:32px;margin:0 auto 14px;
-      border:3px solid rgba(255,255,255,.1);border-top-color:var(--accent);
-      border-radius:50%;animation:spin .7s linear infinite;
-    }
-
-    .report-section { margin-bottom:24px; }
-    .report-section:last-child { margin-bottom:0; }
-
-    .report-header {
-      display:flex;align-items:center;gap:10px;margin-bottom:14px;
-      padding:10px 14px;border-radius:10px;
-    }
-    .report-header.green-bg { background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.2); }
-    .report-header.red-bg   { background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2); }
-    .report-header .icon    { font-size:20px; }
-    .report-header .title   { font-size:14px;font-weight:700; }
-    .report-header .total   { margin-left:auto;font-size:20px;font-weight:900; }
-    .green-bg .total { color:var(--green); }
-    .red-bg   .total { color:var(--red); }
-
-    .data-table { width:100%;border-collapse:collapse;font-size:13px; }
-    .data-table th {
-      background:var(--surface);padding:9px 12px;text-align:left;
+    /* Report */
+    .rsec{margin-bottom:24px;}
+    .rsec:last-child{margin-bottom:0;}
+    .rhead{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;margin-bottom:14px;}
+    .rhead.g{background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.2);}
+    .rhead.r{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);}
+    .rhead .ri{font-size:20px;}
+    .rhead .rt{font-size:14px;font-weight:700;}
+    .rhead .rv{margin-left:auto;font-size:20px;font-weight:900;}
+    .rhead.g .rv{color:var(--green);}
+    .rhead.r .rv{color:var(--red);}
+    table.dt{width:100%;border-collapse:collapse;font-size:13px;}
+    table.dt th{background:var(--surface);padding:9px 12px;text-align:left;
       font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-      color:var(--muted);border-bottom:1px solid var(--border);
-    }
-    .data-table td { padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle; }
-    .data-table tr:last-child td { border-bottom:none; }
-    .data-table tr:hover td { background:rgba(255,255,255,.03); }
+      color:var(--muted);border-bottom:1px solid var(--border);}
+    table.dt td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+    table.dt tr:last-child td{border-bottom:none;}
+    table.dt tr:hover td{background:rgba(255,255,255,.03);}
+    .chip{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:700;font-size:12px;}
+    .chip.p{background:rgba(74,222,128,.15);color:var(--green);}
+    .chip.n{background:rgba(248,113,113,.15);color:var(--red);}
+    .dc{color:var(--muted);font-size:12px;white-space:nowrap;}
+    .nc{color:var(--muted);text-align:center;}
+    .empty{text-align:center;padding:32px;color:var(--muted);font-size:14px;}
 
-    .score-chip { display:inline-block;padding:3px 10px;border-radius:20px;font-weight:700;font-size:12px; }
-    .score-chip.pos { background:rgba(74,222,128,.15);color:var(--green); }
-    .score-chip.neg { background:rgba(248,113,113,.15);color:var(--red); }
-
-    .date-cell { color:var(--muted);font-size:12px;white-space:nowrap; }
-    .no-num    { color:var(--muted);text-align:center; }
-    .empty-state { text-align:center;padding:32px;color:var(--muted);font-size:14px; }
-
-    .footer { text-align:center;margin-top:28px;font-size:11px;color:var(--muted);opacity:.6; }
+    .footer{text-align:center;margin-top:28px;font-size:11px;color:var(--muted);opacity:.6;}
   </style>
 </head>
 <body>
-  <div class="wrapper">
-    <div class="header">
-      <span class="school-icon">🏫</span>
-      <h1>คำชะอีวิทยาคาร</h1>
-      <p>ระบบดูคะแนนนักเรียนออนไลน์</p>
-    </div>
 
-    <div class="card" id="loginSection">
-      <div class="alert" id="errorAlert"></div>
-      <div class="field-group">
-        <label>Username / รหัสนักเรียน</label>
-        <input type="text" id="username" placeholder="ป้อนรหัสนักเรียน" autocomplete="username" />
-      </div>
-      <div class="field-group">
-        <label>Password</label>
-        <input type="password" id="password" placeholder="ป้อนรหัสผ่าน" autocomplete="current-password" />
-      </div>
-      <button class="btn btn-primary" id="loginBtn" onclick="handleLogin()">เข้าสู่ระบบ</button>
-    </div>
+<!-- Loading Overlay -->
+<div id="loadingOverlay">
+  <div class="big-spinner"></div>
+  <p id="loadingText">กำลังเข้าสู่ระบบและโหลดข้อมูล...</p>
+</div>
 
-    <div id="results" class="card">
-      <div class="student-badge">
-        <div class="avatar">👤</div>
-        <div>
-          <div class="name" id="studentName">นักเรียน</div>
-          <div class="sub">คำชะอีวิทยาคาร</div>
-        </div>
-      </div>
-
-      <div class="score-grid">
-        <div class="score-card good"  onclick="openModal('good')"  title="ดูรายงานความดี">
-          <div class="score-icon">😇</div>
-          <div class="score-value" id="scoreGood">—</div>
-          <div class="score-label">คะแนนความดี</div>
-        </div>
-        <div class="score-card bad"   onclick="openModal('bad')"   title="ดูรายงานตัดคะแนน">
-          <div class="score-icon">😔</div>
-          <div class="score-value" id="scoreBad">—</div>
-          <div class="score-label">ตัดคะแนน</div>
-        </div>
-        <div class="score-card total" onclick="openModal('total')" title="ดูรายงานทั้งหมด">
-          <div class="score-icon">⭐</div>
-          <div class="score-value" id="scoreTotal">—</div>
-          <div class="score-label">สรุปรวม</div>
-        </div>
-      </div>
-
-      <div class="actions">
-        <button class="btn btn-outline" onclick="refresh()">🔄 รีเฟรช</button>
-        <button class="btn btn-outline" onclick="logout()">🚪 ออกจากระบบ</button>
-      </div>
-    </div>
-
-    <div class="footer">กดที่การ์ดคะแนนเพื่อดูรายละเอียด &bull; ระบบ KCI</div>
+<div class="wrapper">
+  <div class="header">
+    <span class="icon">🏫</span>
+    <h1>คำชะอีวิทยาคาร</h1>
+    <p>ระบบดูคะแนนนักเรียนออนไลน์</p>
   </div>
 
-  <!-- MODAL -->
-  <div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
-    <div class="modal">
-      <div class="modal-header">
-        <span class="modal-title" id="modalTitle">รายงานคะแนน</span>
-        <button class="modal-close" onclick="closeModal()">✕</button>
+  <!-- Login -->
+  <div class="card" id="loginSection">
+    <div class="alert" id="errAlert"></div>
+    <div class="field">
+      <label>Username / รหัสนักเรียน</label>
+      <input type="text" id="username" placeholder="ป้อนรหัสนักเรียน" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="ป้อนรหัสผ่าน" autocomplete="current-password"/>
+    </div>
+    <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">เข้าสู่ระบบ</button>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="card">
+    <div class="badge">
+      <div class="av">👤</div>
+      <div>
+        <div class="name" id="stuName">นักเรียน</div>
+        <div class="sub">คำชะอีวิทยาคาร</div>
       </div>
-      <div class="modal-tabs" id="modalTabs" style="display:none">
-        <button class="tab-btn good-tab active" id="tabGood" onclick="switchTab('good')">😇 รายงานความดี</button>
-        <button class="tab-btn bad-tab"          id="tabBad"  onclick="switchTab('bad')">😔 รายงานประพฤติ</button>
+    </div>
+    <div class="grid">
+      <div class="sc good"  onclick="openModal('good')"  title="ดูรายงานความดี">
+        <div class="sc-icon">😇</div>
+        <div class="val" id="sGood">—</div>
+        <div class="lbl">คะแนนความดี</div>
       </div>
-      <div class="modal-body" id="modalBody">
-        <div class="modal-loading">
-          <span class="big-spinner"></span>
-          กำลังโหลดข้อมูล...
-        </div>
+      <div class="sc bad"   onclick="openModal('bad')"   title="ดูรายงานตัดคะแนน">
+        <div class="sc-icon">😔</div>
+        <div class="val" id="sBad">—</div>
+        <div class="lbl">ตัดคะแนน</div>
       </div>
+      <div class="sc total" onclick="openModal('total')" title="ดูรายงานทั้งหมด">
+        <div class="sc-icon">⭐</div>
+        <div class="val" id="sTotal">—</div>
+        <div class="lbl">สรุปรวม</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-outline" onclick="doLogout()">🚪 ออกจากระบบ</button>
     </div>
   </div>
 
-  <script>
-    let savedUsername = '', savedPassword = '';
-    let cachedReport  = null;
-    let currentMode   = 'good';
-    let activeTab     = 'good';
+  <div class="footer">กดที่การ์ดคะแนนเพื่อดูรายละเอียด &bull; ระบบ KCI</div>
+</div>
 
-    function showError(msg) {
-      const el = document.getElementById('errorAlert');
-      el.textContent = '⚠️ ' + msg;
-      el.classList.add('show');
-    }
-    function hideError() { document.getElementById('errorAlert').classList.remove('show'); }
+<!-- Modal -->
+<div class="overlay" id="overlay" onclick="closeOuter(event)">
+  <div class="modal">
+    <div class="mhead">
+      <span class="mtitle" id="mTitle">รายงานคะแนน</span>
+      <button class="mclose" onclick="closeModal()">✕</button>
+    </div>
+    <div class="tabs" id="mTabs" style="display:none">
+      <button class="tab gt active" id="tGood" onclick="switchTab('good')">😇 รายงานความดี</button>
+      <button class="tab bt"        id="tBad"  onclick="switchTab('bad')">😔 รายงานประพฤติ</button>
+    </div>
+    <div class="mbody" id="mBody"></div>
+  </div>
+</div>
 
-    async function handleLogin() {
-      hideError();
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
-      if (!username || !password) { showError('กรุณากรอกข้อมูลให้ครบ'); return; }
+<script>
+// ── State ────────────────────────────────────────────────────────
+let DATA       = null;  // เก็บข้อมูลทั้งหมดหลัง login
+let curMode    = 'good';
+let curTab     = 'good';
 
-      const btn = document.getElementById('loginBtn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>กำลังเข้าสู่ระบบ...';
+// ── Helpers ──────────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const err = msg => { $('errAlert').textContent='⚠️ '+msg; $('errAlert').classList.add('show'); };
+const clearErr = ()  => $('errAlert').classList.remove('show');
+const loading  = (show, txt='กำลังเข้าสู่ระบบและโหลดข้อมูล...') => {
+  $('loadingText').textContent = txt;
+  $('loadingOverlay').classList[show?'add':'remove']('show');
+};
 
-      try {
-        const res  = await fetch('/api/scores', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-        if (!data.success) { showError(data.message || 'เข้าสู่ระบบไม่สำเร็จ'); return; }
-        savedUsername = username;
-        savedPassword = password;
-        cachedReport  = null;
-        displayResults(data);
-      } catch(e) {
-        showError('เชื่อมต่อ Server ไม่ได้: ' + e.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'เข้าสู่ระบบ';
-      }
-    }
+// ── Login: เรียก /api/login ครั้งเดียว ได้ทุกอย่าง ──────────────
+async function doLogin() {
+  clearErr();
+  const u = $('username').value.trim();
+  const p = $('password').value.trim();
+  if (!u || !p) { err('กรุณากรอกข้อมูลให้ครบ'); return; }
 
-    function displayResults(data) {
-      document.getElementById('loginSection').style.display = 'none';
-      if (data.student) document.getElementById('studentName').textContent = data.student;
-      document.getElementById('scoreGood').textContent  = data.scores.good  || '0';
-      document.getElementById('scoreBad').textContent   = data.scores.bad   || '0';
-      document.getElementById('scoreTotal').textContent = data.scores.total || '0';
-      document.getElementById('results').classList.add('show');
-    }
+  const btn = $('loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>กำลังโหลด...';
+  loading(true);
 
-    async function refresh() {
-      if (!savedUsername) return;
-      const btn = event.target;
-      btn.textContent = '⏳ กำลังโหลด...';
-      btn.disabled = true;
-      cachedReport = null;
-      try {
-        const res  = await fetch('/api/scores', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ username: savedUsername, password: savedPassword })
-        });
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('scoreGood').textContent  = data.scores.good;
-          document.getElementById('scoreBad').textContent   = data.scores.bad;
-          document.getElementById('scoreTotal').textContent = data.scores.total;
-        }
-      } finally {
-        btn.textContent = '🔄 รีเฟรช';
-        btn.disabled = false;
-      }
-    }
-
-    function logout() {
-      savedUsername = ''; savedPassword = ''; cachedReport = null;
-      document.getElementById('results').classList.remove('show');
-      document.getElementById('loginSection').style.display = '';
-      document.getElementById('username').value = '';
-      document.getElementById('password').value = '';
-    }
-
-    /* ── Modal ── */
-    async function openModal(mode) {
-      currentMode = mode;
-      activeTab   = (mode === 'bad') ? 'bad' : 'good';
-
-      const titles = {
-        good:  '😇 รายงานความดี',
-        bad:   '😔 รายงานความประพฤติ',
-        total: '📋 รายงานคะแนนทั้งหมด'
-      };
-      document.getElementById('modalTitle').textContent = titles[mode];
-      document.getElementById('modalTabs').style.display = (mode === 'total') ? '' : 'none';
-      document.getElementById('tabGood').className = 'tab-btn good-tab' + (activeTab==='good'?' active':'');
-      document.getElementById('tabBad').className  = 'tab-btn bad-tab'  + (activeTab==='bad' ?' active':'');
-
-      document.getElementById('modalBody').innerHTML =
-        '<div class="modal-loading"><span class="big-spinner"></span>กำลังโหลดข้อมูล...</div>';
-      document.getElementById('modalOverlay').classList.add('open');
-      document.body.style.overflow = 'hidden';
-
-      if (!cachedReport) {
-        try {
-          const res  = await fetch('/api/report', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: savedUsername, password: savedPassword })
-          });
-          const data = await res.json();
-          if (!data.success) {
-            document.getElementById('modalBody').innerHTML =
-              `<div class="empty-state">❌ ${data.message}</div>`;
-            return;
-          }
-          cachedReport = data;
-        } catch(e) {
-          document.getElementById('modalBody').innerHTML =
-            `<div class="empty-state">❌ เชื่อมต่อไม่ได้: ${e.message}</div>`;
-          return;
-        }
-      }
-      renderModal(mode, activeTab);
-    }
-
-    function switchTab(tab) {
-      activeTab = tab;
-      document.getElementById('tabGood').className = 'tab-btn good-tab' + (tab==='good'?' active':'');
-      document.getElementById('tabBad').className  = 'tab-btn bad-tab'  + (tab==='bad' ?' active':'');
-      renderModal(currentMode, tab);
-    }
-
-    function renderModal(mode, tab) {
-      const d = cachedReport;
-      let html = '';
-      if      (mode === 'good')              html = buildSection('good', d.good);
-      else if (mode === 'bad')               html = buildSection('bad',  d.bad);
-      else if (mode === 'total' && tab==='good') html = buildSection('good', d.good);
-      else if (mode === 'total' && tab==='bad')  html = buildSection('bad',  d.bad);
-      document.getElementById('modalBody').innerHTML = html || '<div class="empty-state">ไม่มีข้อมูล</div>';
-    }
-
-    function buildSection(type, data) {
-      const isGood  = type === 'good';
-      const color   = isGood ? 'green-bg' : 'red-bg';
-      const icon    = isGood ? '😇' : '😔';
-      const title   = isGood ? 'รายงานความดี' : 'รายงานความประพฤติ';
-      const total   = data.total || '';
-
-      // server แยก header row ออกแล้ว — rows ที่ได้คือ data จริงทั้งหมด
-      // format: [ที่, รายละเอียด, คะแนน, วันที่]
-      const rows = (data.rows || []);
-      if (!rows.length) return `<div class="empty-state">ไม่มีรายการ${title}</div>`;
-
-      let tbl = `
-        <div class="report-section">
-          <div class="report-header ${color}">
-            <span class="icon">${icon}</span>
-            <span class="title">${title}</span>
-            ${total ? `<span class="total">${total}</span>` : ''}
-          </div>
-          <table class="data-table">
-            <thead><tr>
-              <th style="width:36px">ที่</th>
-              <th>รายละเอียด</th>
-              <th style="width:72px;text-align:center">คะแนน</th>
-              <th style="width:110px">วันที่</th>
-            </tr></thead><tbody>`;
-
-      rows.forEach((row, i) => {
-        // รับ [ที่, รายละเอียด, คะแนน, วันที่] หรือ [รายละเอียด, คะแนน, วันที่]
-        let num, detail, score, date;
-        if (row.length >= 4)       { [num, detail, score, date] = row; }
-        else if (row.length === 3) { num = i + 1; [detail, score, date] = row; }
-        else                       { num = i + 1; detail = row[0]; score = row[1] || ''; date = ''; }
-
-        const val   = String(score).trim();
-        const isPos = val.startsWith('+') || (!val.startsWith('-') && parseFloat(val) > 0);
-        const chip  = val ? `<span class="score-chip ${isPos ? 'pos' : 'neg'}">${val}</span>` : '';
-
-        tbl += `<tr>
-          <td class="no-num">${num || i + 1}</td>
-          <td>${detail || ''}</td>
-          <td style="text-align:center">${chip}</td>
-          <td class="date-cell">${date || ''}</td>
-        </tr>`;
-      });
-      tbl += `</tbody></table></div>`;
-      return tbl;
-    }
-
-    function closeModal() {
-      document.getElementById('modalOverlay').classList.remove('open');
-      document.body.style.overflow = '';
-    }
-    function closeModalOutside(e) {
-      if (e.target === document.getElementById('modalOverlay')) closeModal();
-    }
-
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') closeModal();
-      if (e.key === 'Enter' && document.getElementById('loginSection').style.display !== 'none')
-        handleLogin();
+  try {
+    const res  = await fetch('/api/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ username: u, password: p }),
     });
-  </script>
+    const json = await res.json();
+
+    if (!json.success) {
+      err(json.message || 'เข้าสู่ระบบไม่สำเร็จ');
+      return;
+    }
+
+    DATA = json;          // cache ทุกอย่างไว้ใน memory
+    showResults();
+
+  } catch(e) {
+    err('เชื่อมต่อ Server ไม่ได้: ' + e.message);
+  } finally {
+    loading(false);
+    btn.disabled = false;
+    btn.innerHTML = 'เข้าสู่ระบบ';
+  }
+}
+
+function showResults() {
+  if (!DATA) { doLogout(); return; }
+  $('loginSection').style.display = 'none';
+  if (DATA.student) $('stuName').textContent = DATA.student;
+  $('sGood').textContent  = DATA.scores.good  || '0';
+  $('sBad').textContent   = DATA.scores.bad   || '0';
+  $('sTotal').textContent = DATA.scores.total || '0';
+  $('results').classList.add('show');
+}
+
+function doLogout() {
+  DATA = null;
+  $('results').classList.remove('show');
+  $('loginSection').style.display = '';
+  $('username').value = '';
+  $('password').value = '';
+  $('stuName').textContent = 'นักเรียน';
+}
+
+// ── Modal ────────────────────────────────────────────────────────
+function openModal(mode) {
+  // ตรวจว่า login อยู่หรือเปล่า
+  if (!DATA) { doLogout(); return; }
+
+  curMode = mode;
+  curTab  = (mode === 'bad') ? 'bad' : 'good';
+
+  const titles = { good:'😇 รายงานความดี', bad:'😔 รายงานความประพฤติ', total:'📋 รายงานคะแนนทั้งหมด' };
+  $('mTitle').textContent = titles[mode];
+  $('mTabs').style.display = (mode === 'total') ? '' : 'none';
+  setTabActive(curTab);
+
+  renderModal();
+  $('overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function switchTab(tab) {
+  curTab = tab;
+  setTabActive(tab);
+  renderModal();
+}
+
+function setTabActive(tab) {
+  $('tGood').className = 'tab gt' + (tab==='good'?' active':'');
+  $('tBad').className  = 'tab bt' + (tab==='bad' ?' active':'');
+}
+
+function renderModal() {
+  let html = '';
+  const mode = curMode, tab = curTab;
+  if      (mode==='good')              html = buildSection('good', DATA.report.good);
+  else if (mode==='bad')               html = buildSection('bad',  DATA.report.bad);
+  else if (mode==='total'&&tab==='good') html = buildSection('good', DATA.report.good);
+  else if (mode==='total'&&tab==='bad')  html = buildSection('bad',  DATA.report.bad);
+  $('mBody').innerHTML = html || '<div class="empty">ไม่มีข้อมูล</div>';
+}
+
+function buildSection(type, data) {
+  const isG  = type === 'good';
+  const cls  = isG ? 'g' : 'r';
+  const icon = isG ? '😇' : '😔';
+  const name = isG ? 'รายงานความดี' : 'รายงานความประพฤติ';
+  const tot  = data.total || '';
+  const rows = data.rows  || [];
+
+  if (!rows.length)
+    return `<div class="empty">ไม่มีรายการ${name}</div>`;
+
+  let t = `<div class="rsec">
+    <div class="rhead ${cls}">
+      <span class="ri">${icon}</span>
+      <span class="rt">${name}</span>
+      ${tot?`<span class="rv">${tot}</span>`:''}
+    </div>
+    <table class="dt"><thead><tr>
+      <th style="width:36px">ที่</th>
+      <th>รายละเอียด</th>
+      <th style="width:72px;text-align:center">คะแนน</th>
+      <th style="width:110px">วันที่</th>
+    </tr></thead><tbody>`;
+
+  rows.forEach((row, i) => {
+    let num, detail, score, date;
+    if (row.length >= 4)       { [num, detail, score, date] = row; }
+    else if (row.length === 3) { num=i+1; [detail, score, date]=row; }
+    else                       { num=i+1; detail=row[0]; score=row[1]||''; date=''; }
+    const v    = String(score).trim();
+    const isP  = v.startsWith('+') || (!v.startsWith('-') && parseFloat(v) > 0);
+    const chip = v ? `<span class="chip ${isP?'p':'n'}">${v}</span>` : '';
+    t += `<tr>
+      <td class="nc">${num||i+1}</td>
+      <td>${detail||''}</td>
+      <td style="text-align:center">${chip}</td>
+      <td class="dc">${date||''}</td>
+    </tr>`;
+  });
+  t += `</tbody></table></div>`;
+  return t;
+}
+
+function closeModal() {
+  $('overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closeOuter(e) { if (e.target === $('overlay')) closeModal(); }
+
+// ── Keyboard ─────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') closeModal();
+  if (e.key==='Enter' && $('loginSection').style.display !== 'none') doLogin();
+});
+</script>
 </body>
 </html>
