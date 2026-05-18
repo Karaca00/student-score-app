@@ -89,13 +89,34 @@ app.post('/api/login', async (req, res) => {
       }
     });
 
-    // ── STEP 3: GET pub_stu.php (ต้องเข้า main ก่อนเสมอ!) ──────────
-    const pubRes  = await fetch(`${BASE_URL}/stu/pub_stu.php`, {
+    // ── DEBUG: dump main HTML เพื่อหา link ที่ชี้ไป pub_stu.php ──────
+    console.log('[main] HTML 0-500:',   mainHtml.substring(0,500).replace(/\s+/g,' '));
+    console.log('[main] HTML 500-1000:',mainHtml.substring(500,1000).replace(/\s+/g,' '));
+    console.log('[main] HTML 1000-1500:',mainHtml.substring(1000,1500).replace(/\s+/g,' '));
+    console.log('[main] HTML 1500-2000:',mainHtml.substring(1500,2000).replace(/\s+/g,' '));
+    console.log('[main] HTML 2000-2500:',mainHtml.substring(2000,2500).replace(/\s+/g,' '));
+    console.log('[main] HTML 2500-3000:',mainHtml.substring(2500,3000).replace(/\s+/g,' '));
+
+    // หา link ที่มี pub_stu ใน main-stu.php
+    const pubLinkMatch = mainHtml.match(/href=["']([^"']*pub_stu[^"']*)["']/i);
+    let pubUrl = `${BASE_URL}/stu/pub_stu.php`;
+    if (pubLinkMatch) {
+      const found = pubLinkMatch[1];
+      pubUrl = found.startsWith('http') ? found : `${BASE_URL}/stu/${found.replace(/^\.?\//,'')}`;
+      console.log('[pub]  found link in main:', pubUrl);
+    } else {
+      // ลอง fallback: ส่ง username เป็น GET param
+      pubUrl = `${BASE_URL}/stu/pub_stu.php?id=${encodeURIComponent(username)}`;
+      console.log('[pub]  no link found, trying with id param:', pubUrl);
+    }
+
+    // ── STEP 3: GET pub_stu.php ────────────────────────────────────
+    const pubRes  = await fetch(pubUrl, {
       headers: { 'Cookie': cookie, 'User-Agent': UA, 'Referer': `${BASE_URL}/stu/main-stu.php` },
     });
     const pubHtml = await pubRes.text();
     console.log('[pub]  status:', pubRes.status, '| length:', pubHtml.length);
-    console.log('[pub]  preview:', pubHtml.substring(0, 300).replace(/\s+/g, ' '));
+    console.log('[pub]  preview:', pubHtml.substring(0, 400).replace(/\s+/g, ' '));
 
     const $p = cheerio.load(pubHtml);
 
